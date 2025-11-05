@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import apiClient from '../api/client';
-import { AuthResponse, LoginRequest, RegisterRequest, UserResponse } from '../types';
+import { authService } from '../api/authService';
+import { LoginRequest, RegisterRequest, UserResponse } from '../types';
 
 interface AuthContextType {
   user: UserResponse | null;
@@ -52,8 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (credentials: LoginRequest) => {
     try {
-      const response = await apiClient.post<AuthResponse>('/api/auth/login', credentials);
-      const { accessToken, user: userData } = response.data;
+      const { accessToken, user: userData } = await authService.login(credentials);
 
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, accessToken);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
@@ -68,8 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (data: RegisterRequest) => {
     try {
-      const response = await apiClient.post<AuthResponse>('/api/auth/register', data);
-      const { accessToken, user: userData } = response.data;
+      const { accessToken, user: userData } = await authService.register(data);
 
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, accessToken);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
