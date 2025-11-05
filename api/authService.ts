@@ -3,12 +3,14 @@ import apiClient from './client';
 
 export const authService = {
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/api/auth/login', credentials);
-    return response.data;
+    const response = await apiClient.post('/api/auth/login', credentials);
+    console.log('AuthService login response:', JSON.stringify(response.data, null, 2));
+    return response.data.data;
   },
 
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/api/auth/register', data);
-    return response.data;
+    const response = await apiClient.post('/api/auth/register', data);
+    console.log('AuthService register response:', JSON.stringify(response.data, null, 2));
+    return response.data.data;
   },
 };
