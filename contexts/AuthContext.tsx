@@ -1,4 +1,6 @@
+import { AUTH_EVENTS, authEvents } from '@/utils/eventEmitter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { authService } from '../api/authService';
 import { LoginRequest, RegisterRequest, UserResponse } from '../types';
@@ -11,6 +13,7 @@ interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
+  clearSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,7 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(JSON.parse(storedUser));
         }
       } catch (error) {
-        console.error('Failed to restore session:', error);
+        console.error('[AuthContext] Failed to restore session:', error);
         await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
       } finally {
         setIsLoading(false);
@@ -49,6 +52,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     restoreSession();
   }, []);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      console.log('[AuthContext] Session expired event received');
+      setToken(null);
+      setUser(null);
+      router.replace('/login');
+    };
+
+    authEvents.on(AUTH_EVENTS.SESSION_EXPIRED, handleSessionExpired);
+    
+    return () => {
+      authEvents.off(AUTH_EVENTS.SESSION_EXPIRED, handleSessionExpired);
+    };
+  }, []);
+
+  const clearSession = async () => {
+    try {
+      await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
+      setToken(null);
+      setUser(null);
+      console.log('[AuthContext] Session cleared');
+    } catch (error) {
+      console.error('[AuthContext] Failed to clear session:', error);
+    }
+  };
 
   const login = async (credentials: LoginRequest) => {
     try {
@@ -82,10 +111,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
-
-      setToken(null);
-      setUser(null);
+      await clearSession();
+      router.replace('/login');
     } catch (error) {
       console.error('Logout failed:', error);
       throw error;
@@ -100,6 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
+    clearSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

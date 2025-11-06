@@ -1,3 +1,4 @@
+import { AUTH_EVENTS, authEvents } from '@/utils/eventEmitter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
@@ -41,26 +42,17 @@ apiClient.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
 
-      // 401 Unauthorized - token is invalid/expired/missing
-      if (status === 401) {
-        await AsyncStorage.removeItem('auth_token');
-        await AsyncStorage.removeItem('user');
+      if (status === 401 || status === 403) {
+        await AsyncStorage.multiRemove(['auth_token', 'user']);
+        console.log('[API] Session cleared due to', status);
 
-        const authError = new AuthenticationError(
-          data?.message || 'Your session has expired. Please login again.'
-        );
+        authEvents.emit(AUTH_EVENTS.SESSION_EXPIRED);
+
+        const authError = status === 401
+          ? new AuthenticationError(data?.message || 'Your session has expired')
+          : new PermissionError(data?.message || 'Access denied');
+
         return Promise.reject(authError);
-      }
-
-      // 403 Forbidden - authenticated but not authorized
-      if (status === 403) {
-        const token = await AsyncStorage.getItem('auth_token');
-        if (token) {
-          const permissionError = new PermissionError(
-            data?.message || 'Access denied. Your session may have been invalidated.'
-          );
-          return Promise.reject(permissionError);
-        }
       }
 
       const errorMessage = data?.message || data?.error || 'An error occurred';
