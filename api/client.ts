@@ -11,13 +11,18 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
+// === Interceptors === //
 apiClient.interceptors.request.use(
   async (config) => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('[REQUEST] Token attached to request');
+      } else {
+        console.warn('[REQUEST] No token found in storage');
       }
+      console.log('[REQUEST]', config.method?.toUpperCase(), config.baseURL + config.url);
     } catch (error) {
       console.error('Error retrieving token from storage:', error);
     }
@@ -36,11 +41,26 @@ apiClient.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
 
-      // 401 Unauthorized - handle token expiration or invalid token
+      // 401 Unauthorized - token is invalid/expired/missing
       if (status === 401) {
         await AsyncStorage.removeItem('auth_token');
         await AsyncStorage.removeItem('user');
-        // TODO: navigate back to login?
+
+        const authError = new AuthenticationError(
+          data?.message || 'Your session has expired. Please login again.'
+        );
+        return Promise.reject(authError);
+      }
+
+      // 403 Forbidden - authenticated but not authorized
+      if (status === 403) {
+        const token = await AsyncStorage.getItem('auth_token');
+        if (token) {
+          const permissionError = new PermissionError(
+            data?.message || 'Access denied. Your session may have been invalidated.'
+          );
+          return Promise.reject(permissionError);
+        }
       }
 
       const errorMessage = data?.message || data?.error || 'An error occurred';
@@ -54,5 +74,20 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// === Custom Errors === //
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
+export class PermissionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermissionError';
+  }
+}
 
 export default apiClient;

@@ -14,7 +14,7 @@ export const vocabularyService = {
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch vocabulary');
+      throw new Error('Failed to fetch vocabulary. ' + (error.response?.data?.message || error));
     }
   },
 
@@ -23,7 +23,7 @@ export const vocabularyService = {
       const response = await apiClient.get<VocabularyResponse>(getVocabularyByIdUrl(id));
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch vocabulary item');
+      throw new Error('Failed to fetch vocabulary item. ' + (error.response?.data?.message || error));
     }
   },
 
@@ -32,7 +32,7 @@ export const vocabularyService = {
       const response = await apiClient.post<VocabularyResponse>(VOCABULARY_ENDPOINTS.BASE, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to create vocabulary item');
+      throw new Error('Failed to create vocabulary item. ' + (error.response?.data?.message || error));
     }
   },
 
@@ -44,7 +44,7 @@ export const vocabularyService = {
       const response = await apiClient.put<VocabularyResponse>(getVocabularyByIdUrl(id), data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to update vocabulary item');
+      throw new Error('Failed to update vocabulary item. ' + (error.response?.data?.message || error));
     }
   },
 
@@ -52,7 +52,7 @@ export const vocabularyService = {
     try {
       await apiClient.delete(getVocabularyByIdUrl(id));
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to delete vocabulary item');
+      throw new Error('Failed to delete vocabulary item. ' + (error.response?.data?.message || error));
     }
   },
 };
