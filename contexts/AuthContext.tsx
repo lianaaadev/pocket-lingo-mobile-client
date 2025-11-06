@@ -32,6 +32,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const clearSession = async () => {
+    try {
+      await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
+      setToken(null);
+      setUser(null);
+      console.log('[AuthContext] Session cleared');
+    } catch (error) {
+      console.error('[AuthContext] Failed to clear session:', error);
+    }
+  };
+
   useEffect(() => {
     const restoreSession = async () => {
       try {
@@ -54,30 +65,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const handleSessionExpired = () => {
+    const handleSessionExpired = async () => {
       console.log('[AuthContext] Session expired event received');
-      setToken(null);
-      setUser(null);
+      await clearSession();
       router.replace('/login');
     };
 
     authEvents.on(AUTH_EVENTS.SESSION_EXPIRED, handleSessionExpired);
-    
+
     return () => {
       authEvents.off(AUTH_EVENTS.SESSION_EXPIRED, handleSessionExpired);
     };
   }, []);
-
-  const clearSession = async () => {
-    try {
-      await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
-      setToken(null);
-      setUser(null);
-      console.log('[AuthContext] Session cleared');
-    } catch (error) {
-      console.error('[AuthContext] Failed to clear session:', error);
-    }
-  };
 
   const login = async (credentials: LoginRequest) => {
     try {
