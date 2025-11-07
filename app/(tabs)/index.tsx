@@ -56,12 +56,12 @@ export default function HomeScreen() {
         err instanceof AuthenticationError ||
         err instanceof PermissionError
       ) {
-        setError("Please log in again. ", err.message);
+        setError("Please log in again.", err.message);
       } else {
         setError(
-          "Failed to load words. ",
+          "Failed to load words.",
           err.message,
-          " Please refresh and try again.",
+          "Please refresh and try again.",
         );
       }
     } finally {
@@ -94,6 +94,8 @@ export default function HomeScreen() {
   };
 
   const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-10, 10])
     .onStart(() => {
       startX.value = translateX.value;
     })
@@ -131,7 +133,10 @@ export default function HomeScreen() {
     runOnJS(handleFlip)();
   });
 
-  const composedGesture = Gesture.Simultaneous(tapGesture, panGesture);
+  const composedGesture = Gesture.Exclusive(
+    panGesture,
+    tapGesture
+  );
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
