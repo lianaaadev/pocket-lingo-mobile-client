@@ -1,11 +1,11 @@
-import { AuthenticationError, PermissionError } from '@/api/client';
-import { vocabularyService } from '@/api/vocabularyService';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { VocabularyResponse } from '@/types/vocabulary.types';
-import React, { useEffect, useState } from 'react';
+import { AuthenticationError, PermissionError } from "@/api/client";
+import { vocabularyService } from "@/api/vocabularyService";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { VocabularyResponse } from "@/types/vocabulary.types";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -13,23 +13,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
-} from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+  View,
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { runOnJS } from 'react-native-worklets';
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { runOnJS } from "react-native-worklets";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme ?? "light"];
 
   const [words, setWords] = useState<VocabularyResponse[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -52,10 +52,17 @@ export default function HomeScreen() {
       const response = await vocabularyService.getVocabulary(0, 5);
       setWords(response.content);
     } catch (err: any) {
-      if (err instanceof AuthenticationError || err instanceof PermissionError) {
-        setError('Please log in again. ', err.message);
+      if (
+        err instanceof AuthenticationError ||
+        err instanceof PermissionError
+      ) {
+        setError("Please log in again. ", err.message);
       } else {
-        setError('Failed to load words. ', err.message, ' Please refresh and try again.');
+        setError(
+          "Failed to load words. ",
+          err.message,
+          " Please refresh and try again.",
+        );
       }
     } finally {
       setLoading(false);
@@ -94,7 +101,7 @@ export default function HomeScreen() {
       translateX.value = startX.value + event.translationX;
     })
     .onEnd((event) => {
-      'worklet';
+      "worklet";
       const swipeThreshold = 100;
 
       if (event.translationX > swipeThreshold && currentIndex > 0) {
@@ -104,7 +111,10 @@ export default function HomeScreen() {
             runOnJS(handlePrevious)();
           }
         });
-      } else if (event.translationX < -swipeThreshold && currentIndex < words.length - 1) {
+      } else if (
+        event.translationX < -swipeThreshold &&
+        currentIndex < words.length - 1
+      ) {
         translateX.value = withTiming(-width, { duration: 200 }, (finished) => {
           if (finished) {
             translateX.value = 0;
@@ -117,7 +127,7 @@ export default function HomeScreen() {
     });
 
   const tapGesture = Gesture.Tap().onEnd(() => {
-    'worklet';
+    "worklet";
     runOnJS(handleFlip)();
   });
 
@@ -131,7 +141,9 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <ActivityIndicator size="large" color={colors.tint} />
       </SafeAreaView>
     );
@@ -139,8 +151,10 @@ export default function HomeScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: '#ef4444' }]}>{error}</Text>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <Text style={[styles.errorText, { color: "#ef4444" }]}>{error}</Text>
         <Button title="Retry" onPress={loadWords} style={{ marginTop: 16 }} />
       </SafeAreaView>
     );
@@ -148,7 +162,9 @@ export default function HomeScreen() {
 
   if (words.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <Text style={[styles.emptyText, { color: colors.text }]}>
           No words yet. Add some words to get started!
         </Text>
@@ -159,7 +175,9 @@ export default function HomeScreen() {
   const currentWord = words[currentIndex];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -191,11 +209,13 @@ export default function HomeScreen() {
                 </View>
               ) : (
                 <View style={styles.cardContent}>
-                  <Text style={[styles.definitionLabel, { color: colors.icon }]}>
+                  <Text
+                    style={[styles.definitionLabel, { color: colors.icon }]}
+                  >
                     Definition
                   </Text>
                   <Text style={[styles.definitionText, { color: colors.text }]}>
-                    {currentWord.definition || 'No definition available'}
+                    {currentWord.definition || "No definition available"}
                   </Text>
                   {currentWord.example && (
                     <>
@@ -207,7 +227,9 @@ export default function HomeScreen() {
                       >
                         Example
                       </Text>
-                      <Text style={[styles.exampleText, { color: colors.text }]}>
+                      <Text
+                        style={[styles.exampleText, { color: colors.text }]}
+                      >
                         {currentWord.example}
                       </Text>
                     </>
@@ -235,7 +257,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
   },
   counter: {
@@ -243,61 +265,61 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
   },
   flashcard: {
     width: width - 40,
     minHeight: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
   },
   cardContent: {
     padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   wordText: {
     fontSize: 36,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 12,
   },
   hint: {
     fontSize: 14,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   definitionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
     marginBottom: 8,
   },
   definitionText: {
     fontSize: 20,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 28,
   },
   exampleLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
     marginBottom: 8,
   },
   exampleText: {
     fontSize: 16,
-    textAlign: 'center',
-    fontStyle: 'italic',
+    textAlign: "center",
+    fontStyle: "italic",
     lineHeight: 24,
   },
   errorText: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyText: {
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
