@@ -13,7 +13,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthProvider, useAuth } from "../contexts";
 
 export const unstable_settings = {
-  anchor: "(tabs)",
+  initialRouteName: "(tabs)",
 };
 
 function RootLayoutNav() {
@@ -25,10 +25,11 @@ function RootLayoutNav() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(tabs)";
+    const isOnLoginScreen = segments[0] === "login";
 
     if (!isAuthenticated && inAuthGroup) {
       router.replace("/login");
-    } else if (isAuthenticated && !inAuthGroup) {
+    } else if (isAuthenticated && isOnLoginScreen) {
       router.replace("/(tabs)");
     }
   }, [isAuthenticated, isLoading, segments]);
@@ -37,6 +38,10 @@ function RootLayoutNav() {
     <Stack>
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="word-detail"
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="modal"
         options={{ presentation: "modal", title: "Modal" }}
