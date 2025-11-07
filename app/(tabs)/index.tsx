@@ -1,98 +1,278 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { AuthenticationError, PermissionError } from '@/api/client';
+import { vocabularyService } from '@/api/vocabularyService';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { VocabularyResponse } from '@/types/vocabulary.types';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  const { clearSession } = useAuth();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const [words, setWords] = useState<VocabularyResponse[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadWords();
+  }, []);
+
+  const loadWords = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await vocabularyService.getVocabulary(0, 5);
+      setWords(response.content);
+    } catch (err: any) {
+      if (err instanceof AuthenticationError || err instanceof PermissionError) {
+        setError('Please log in again. ', err.message);
+      } else {
+        setError('Failed to load words. ', err.message, ' Please refresh and try again.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadWords();
+  };
+
+  const handleNext = () => {
+    if (currentIndex < words.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setIsFlipped(false);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setIsFlipped(false);
+    }
+  };
+
+  const handleFlip = () => {
+    setIsFlipped(!isFlipped);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.tint} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: '#ef4444' }]}>{error}</Text>
+        <Button title="Retry" onPress={loadWords} style={{ marginTop: 16 }} />
+      </SafeAreaView>
+    );
+  }
+
+  if (words.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.text }]}>
+          No words yet. Add some words to get started!
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
+  const currentWord = words[currentIndex];
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.tint}
+          />
+        }
+      >
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Flashcards</Text>
+          <Text style={[styles.counter, { color: colors.icon }]}>
+            {currentIndex + 1} / {words.length}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={handleFlip}
+          activeOpacity={0.9}
+          style={styles.cardContainer}
+        >
+          <Card style={[styles.flashcard, { borderColor: colors.tint }]}>
+            {!isFlipped ? (
+              <View style={styles.cardContent}>
+                <Text style={[styles.wordText, { color: colors.text }]}>
+                  {currentWord.word}
+                </Text>
+                <Text style={[styles.hint, { color: colors.icon }]}>
+                  Tap to see definition
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.cardContent}>
+                <Text style={[styles.definitionLabel, { color: colors.icon }]}>
+                  Definition
+                </Text>
+                <Text style={[styles.definitionText, { color: colors.text }]}>
+                  {currentWord.definition || 'No definition available'}
+                </Text>
+                {currentWord.example && (
+                  <>
+                    <Text
+                      style={[
+                        styles.exampleLabel,
+                        { color: colors.icon, marginTop: 16 },
+                      ]}
+                    >
+                      Example
+                    </Text>
+                    <Text style={[styles.exampleText, { color: colors.text }]}>
+                      {currentWord.example}
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
+          </Card>
+        </TouchableOpacity>
+
+        <View style={styles.controls}>
+          <Button
+            title="Previous"
+            onPress={handlePrevious}
+            disabled={currentIndex === 0}
+            variant="outline"
+            style={styles.navButton}
+          />
+          <Button
+            title="Next"
+            onPress={handleNext}
+            disabled={currentIndex === words.length - 1}
+            style={styles.navButton}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  scrollContent: {
+    flexGrow: 1,
+    padding: 20,
+  },
+  header: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  counter: {
+    fontSize: 16,
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  flashcard: {
+    width: width - 40,
+    minHeight: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  cardContent: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wordText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  hint: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  definitionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  definitionText: {
+    fontSize: 20,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  exampleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  exampleText: {
+    fontSize: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 24,
+  },
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+  },
+  navButton: {
+    flex: 1,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    textAlign: 'center',
   },
 });
