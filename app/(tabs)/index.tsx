@@ -3,7 +3,6 @@ import { vocabularyService } from '@/api/vocabularyService';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { VocabularyResponse } from '@/types/vocabulary.types';
 import React, { useEffect, useState } from 'react';
@@ -14,17 +13,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { runOnJS } from 'react-native-worklets';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { clearSession } = useAuth();
 
   const [words, setWords] = useState<VocabularyResponse[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -32,6 +37,9 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const translateX = useSharedValue(0);
+  const startX = useSharedValue(0);
 
   useEffect(() => {
     loadWords();
@@ -77,6 +85,49 @@ export default function HomeScreen() {
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
   };
+
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      startX.value = translateX.value;
+    })
+    .onUpdate((event) => {
+      translateX.value = startX.value + event.translationX;
+    })
+    .onEnd((event) => {
+      'worklet';
+      const swipeThreshold = 100;
+
+      if (event.translationX > swipeThreshold && currentIndex > 0) {
+        translateX.value = withTiming(width, { duration: 200 }, (finished) => {
+          if (finished) {
+            translateX.value = 0;
+            runOnJS(handlePrevious)();
+          }
+        });
+      } else if (event.translationX < -swipeThreshold && currentIndex < words.length - 1) {
+        translateX.value = withTiming(-width, { duration: 200 }, (finished) => {
+          if (finished) {
+            translateX.value = 0;
+            runOnJS(handleNext)();
+          }
+        });
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    'worklet';
+    runOnJS(handleFlip)();
+  });
+
+  const composedGesture = Gesture.Simultaneous(tapGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value }],
+    };
+  });
 
   if (loading) {
     return (
@@ -126,64 +177,46 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={handleFlip}
-          activeOpacity={0.9}
-          style={styles.cardContainer}
-        >
-          <Card style={[styles.flashcard, { borderColor: colors.tint }]}>
-            {!isFlipped ? (
-              <View style={styles.cardContent}>
-                <Text style={[styles.wordText, { color: colors.text }]}>
-                  {currentWord.word}
-                </Text>
-                <Text style={[styles.hint, { color: colors.icon }]}>
-                  Tap to see definition
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.cardContent}>
-                <Text style={[styles.definitionLabel, { color: colors.icon }]}>
-                  Definition
-                </Text>
-                <Text style={[styles.definitionText, { color: colors.text }]}>
-                  {currentWord.definition || 'No definition available'}
-                </Text>
-                {currentWord.example && (
-                  <>
-                    <Text
-                      style={[
-                        styles.exampleLabel,
-                        { color: colors.icon, marginTop: 16 },
-                      ]}
-                    >
-                      Example
-                    </Text>
-                    <Text style={[styles.exampleText, { color: colors.text }]}>
-                      {currentWord.example}
-                    </Text>
-                  </>
-                )}
-              </View>
-            )}
-          </Card>
-        </TouchableOpacity>
-
-        <View style={styles.controls}>
-          <Button
-            title="Previous"
-            onPress={handlePrevious}
-            disabled={currentIndex === 0}
-            variant="outline"
-            style={styles.navButton}
-          />
-          <Button
-            title="Next"
-            onPress={handleNext}
-            disabled={currentIndex === words.length - 1}
-            style={styles.navButton}
-          />
-        </View>
+        <GestureDetector gesture={composedGesture}>
+          <Animated.View style={[styles.cardContainer, animatedStyle]}>
+            <Card style={[styles.flashcard, { borderColor: colors.tint }]}>
+              {!isFlipped ? (
+                <View style={styles.cardContent}>
+                  <Text style={[styles.wordText, { color: colors.text }]}>
+                    {currentWord.word}
+                  </Text>
+                  <Text style={[styles.hint, { color: colors.icon }]}>
+                    Tap to see definition • Swipe for next/previous
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.cardContent}>
+                  <Text style={[styles.definitionLabel, { color: colors.icon }]}>
+                    Definition
+                  </Text>
+                  <Text style={[styles.definitionText, { color: colors.text }]}>
+                    {currentWord.definition || 'No definition available'}
+                  </Text>
+                  {currentWord.example && (
+                    <>
+                      <Text
+                        style={[
+                          styles.exampleLabel,
+                          { color: colors.icon, marginTop: 16 },
+                        ]}
+                      >
+                        Example
+                      </Text>
+                      <Text style={[styles.exampleText, { color: colors.text }]}>
+                        {currentWord.example}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
+            </Card>
+          </Animated.View>
+        </GestureDetector>
       </ScrollView>
     </SafeAreaView>
   );
@@ -212,6 +245,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
   },
   flashcard: {
     width: width - 40,
@@ -257,15 +291,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     lineHeight: 24,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    gap: 12,
-  },
-  navButton: {
-    flex: 1,
   },
   errorText: {
     fontSize: 16,
